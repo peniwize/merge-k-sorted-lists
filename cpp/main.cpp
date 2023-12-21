@@ -11,7 +11,9 @@
 //!\sa https://github.com/doctest/doctest/blob/master/doc/markdown/main.md
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
+#include <algorithm>
 #include <doctest/doctest.h> //!\sa https://github.com/doctest/doctest/blob/master/doc/markdown/tutorial.md
+#include <functional>
 #include <iterator>
 #include <vector>
 
@@ -26,6 +28,10 @@ struct ListNode {
     ListNode(int x) : val(x), next(nullptr) {}
     ListNode(int x, ListNode *next) : val(x), next(next) {}
 };
+
+bool operator<(ListNode const& left, ListNode const& right) {
+    return left.val < right.val;
+}
 
 /**
  * Definition for singly-linked list.
@@ -125,14 +131,97 @@ public:
         Space = O(k)
     */
     ListNode* mergeKLists_heap(vector<ListNode*>& lists) {
-        //
-        //!\todo TODO: >>> Under Construction <<<
-        //
-        return nullptr;
+        ListNode* result = nullptr;
+        
+        auto const minHeapCap = lists.size();
+        size_t minHeapSize = 0;
+        ListNode* minHeap[minHeapCap];
+        for (auto& list : lists) {
+            if (list) {
+                minHeap[minHeapSize++] = list;
+            }
+        }
+        heapify(minHeap, minHeapSize);
+        
+        ListNode* resultTail = nullptr;
+        while (0 < minHeapSize) {
+            // Pop top item off of heap.
+            auto node = minHeap[0];
+            minHeapSize = heapPop(minHeap, minHeapSize);
+
+            // Append popped item to result.
+            if (!result) { result = node; }
+            if (resultTail) { resultTail->next = node; }
+            resultTail = node;
+            if (node->next) { minHeapSize = heapPush(minHeap, minHeapSize, node->next); }
+            resultTail->next = nullptr;
+        }
+        
+        return result;
+    }
+
+    template <typename t_compare_t = std::less<ListNode>>
+    void heapify(ListNode* heap[], size_t heapSize) const {
+        for (decltype(heapSize) idx = 1; heapSize > idx; ++idx) {
+            heapifyUp(heap, idx);
+        }
+    }
+
+    template <typename t_compare_t = std::less<ListNode>>
+    void heapifyUp(ListNode* heap[], size_t itemIdx) const {
+        while (0 < itemIdx) {
+            auto const parentIdx = (itemIdx - 1) >> 1;
+            if (t_compare_t{}(*heap[itemIdx], *heap[parentIdx])) {
+                std::swap(heap[parentIdx], heap[itemIdx]);
+                itemIdx = parentIdx;
+            } else {
+                break;
+            }
+        }
+    }
+
+    template <typename t_compare_t = std::less<ListNode>>
+    void heapifyDown(ListNode* heap[], size_t const heapSize, size_t itemIdx) const {
+        while (heapSize > itemIdx) {
+            auto const leftChildIdx = (itemIdx << 1) + 1;
+            auto const rightChildIdx = (itemIdx << 1) + 2;
+            auto swapIdx = itemIdx;
+            if (heapSize > leftChildIdx && t_compare_t{}(*heap[leftChildIdx], *heap[swapIdx])) {
+                swapIdx = leftChildIdx;
+            }
+            if (heapSize > rightChildIdx && t_compare_t{}(*heap[rightChildIdx], *heap[swapIdx])) {
+                swapIdx = rightChildIdx;
+            }
+            if (swapIdx == itemIdx) {
+                break;
+            }
+            std::swap(heap[swapIdx], heap[itemIdx]);
+            itemIdx = swapIdx;
+        }
+    }
+
+    template <typename t_compare_t = std::less<ListNode>>
+    size_t heapPush(ListNode* heap[], size_t heapSize, ListNode* value) const {
+        heap[heapSize] = value;
+        heapifyUp<t_compare_t>(heap, heapSize);
+        return heapSize + 1;
+    }
+
+    template <typename t_compare_t = std::less<ListNode>>
+    size_t heapPop(ListNode* heap[], size_t heapSize) const {
+        if (0 < heapSize) {
+            --heapSize;
+            if (0 < heapSize) {
+                heap[0] = std::move(heap[heapSize]);
+                heapifyDown<t_compare_t>(heap, heapSize, 0);
+            }
+        }
+        return heapSize;
     }
     
     ListNode* mergeKLists(vector<ListNode*>& lists) {
-        return mergeKLists_bruteForce(lists);
+        //return mergeKLists_bruteForce(lists);
+        return mergeKLists_heap(lists);
     }
 };
 
@@ -180,16 +269,24 @@ bool operator==(vector<int> const& expected, ListNode const* list) {
 TEST_CASE("Case 1")
 {
     cerr << "Case 1" << '\n';
-    auto mergedList = [&]{
-        auto lists = makeLists(vector<vector<int>>{
+    auto [mergedList, expected] = [&]{
+        auto const listsValues = vector<vector<int>>{
             vector<int>{1, 4, 5}
             , vector<int>{1, 3, 4}
             , vector<int>{2, 6}
-        });
+        };
+        vector<int> expected{};
+        for (auto const& list : listsValues) {
+            for (auto const& value : list) {
+                expected.push_back(value);
+            }
+        }
+        std::sort(expected.begin(), expected.end());
+        auto lists = makeLists(listsValues);
         ListNode* mergedList = Solution{}.mergeKLists(lists);
-        return mergedList;
+        return std::make_tuple(mergedList, expected);
     }();
-    CHECK(vector<int>{1, 1, 2, 3, 4, 4, 5, 6} == mergedList);
+    CHECK(expected == mergedList);
     freeList(mergedList);
     cerr << '\n';
 }
@@ -197,12 +294,21 @@ TEST_CASE("Case 1")
 TEST_CASE("Case 2")
 {
     cerr << "Case 2" << '\n';
-    auto mergedList = [&]{
-        auto lists = makeLists(vector<vector<int>>{});
+    auto [mergedList, expected] = [&]{
+        auto const listsValues = vector<vector<int>>{
+        };
+        vector<int> expected{};
+        for (auto const& list : listsValues) {
+            for (auto const& value : list) {
+                expected.push_back(value);
+            }
+        }
+        std::sort(expected.begin(), expected.end());
+        auto lists = makeLists(listsValues);
         ListNode* mergedList = Solution{}.mergeKLists(lists);
-        return mergedList;
+        return std::make_tuple(mergedList, expected);
     }();
-    CHECK(vector<int>{} == mergedList);
+    CHECK(expected == mergedList);
     freeList(mergedList);
     cerr << '\n';
 }
@@ -210,16 +316,53 @@ TEST_CASE("Case 2")
 TEST_CASE("Case 4")
 {
     cerr << "Case 4" << '\n';
-    auto mergedList = [&]{
-        auto lists = makeLists(vector<vector<int>>{
+    auto [mergedList, expected] = [&]{
+        auto const listsValues = vector<vector<int>>{
             vector<int>{2}
             , vector<int>{}
             , vector<int>{-1}
-        });
+        };
+        vector<int> expected{};
+        for (auto const& list : listsValues) {
+            for (auto const& value : list) {
+                expected.push_back(value);
+            }
+        }
+        std::sort(expected.begin(), expected.end());
+        auto lists = makeLists(listsValues);
         ListNode* mergedList = Solution{}.mergeKLists(lists);
-        return mergedList;
+        return std::make_tuple(mergedList, expected);
     }();
-    CHECK(vector<int>{-1, 2} == mergedList);
+    CHECK(expected == mergedList);
+    freeList(mergedList);
+    cerr << '\n';
+}
+
+TEST_CASE("Case 5")
+{
+    cerr << "Case 5" << '\n';
+    auto [mergedList, expected] = [&]{
+        auto const listsValues = vector<vector<int>>{
+            vector<int>{-10, -9, -9, -3, -1, -1, 0}
+            , vector<int>{-5}
+            , vector<int>{4}
+            , vector<int>{-8}
+            , vector<int>{}
+            , vector<int>{-9, -6, -5, -4, -2, 2, 3}
+            , vector<int>{-3, -3, -2, -1, 0}
+        };
+        vector<int> expected{};
+        for (auto const& list : listsValues) {
+            for (auto const& value : list) {
+                expected.push_back(value);
+            }
+        }
+        std::sort(expected.begin(), expected.end());
+        auto lists = makeLists(listsValues);
+        ListNode* mergedList = Solution{}.mergeKLists(lists);
+        return std::make_tuple(mergedList, expected);
+    }();
+    CHECK(expected == mergedList);
     freeList(mergedList);
     cerr << '\n';
 }
