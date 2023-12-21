@@ -66,9 +66,8 @@ public:
                     auto* firstNode = *first;
                     for (auto second = first + 1; lists.end() != second; ++second) {
                         auto* secondNode = *second;
+                        ListNode* resultTail = nullptr;
                         if (secondNode) {
-                            ListNode* resultTail = nullptr;
-
                             // Iterate over each list and combine into result.
                             while (firstNode && secondNode) {
                                 auto& lesserNode = firstNode->val <= secondNode->val ? firstNode : secondNode;
@@ -81,24 +80,23 @@ public:
                                 // Advance to next node.
                                 lesserNode = lesserNode->next;
                             }
-
-                            // Append remaining first list nodes, if any.
-                            for (; firstNode; firstNode = firstNode->next) {
-                                if (!result) { result = firstNode; }
-                                if (resultTail) { resultTail->next = firstNode; }
-                                resultTail = firstNode;
-                            }
-
-                            // Append remaining second list nodes, if any.
-                            for (; secondNode; secondNode = secondNode->next) {
-                                if (!result) { result = secondNode; }
-                                if (resultTail) { resultTail->next = secondNode; }
-                                resultTail = secondNode;
-                            }
-                            
-                            resultTail = nullptr;
                         }
 
+                        // Append remaining first list nodes, if any.
+                        for (; firstNode; firstNode = firstNode->next) {
+                            if (!result) { result = firstNode; }
+                            if (resultTail) { resultTail->next = firstNode; }
+                            resultTail = firstNode;
+                        }
+
+                        // Append remaining second list nodes, if any.
+                        for (; secondNode; secondNode = secondNode->next) {
+                            if (!result) { result = secondNode; }
+                            if (resultTail) { resultTail->next = secondNode; }
+                            resultTail = secondNode;
+                        }
+                        
+                        resultTail = nullptr;
                         firstNode = result;
                         result = nullptr;
                     }
@@ -123,6 +121,8 @@ public:
         Time = O(n*log(k))
                Where: n is the sum of all list sizes, i.e. total number of list items.
                       k is the number of lists.
+    
+        Space = O(k)
     */
     ListNode* mergeKLists_heap(vector<ListNode*>& lists) {
         //
@@ -207,17 +207,19 @@ TEST_CASE("Case 2")
     cerr << '\n';
 }
 
-TEST_CASE("Case 3")
+TEST_CASE("Case 4")
 {
-    cerr << "Case 3" << '\n';
+    cerr << "Case 4" << '\n';
     auto mergedList = [&]{
         auto lists = makeLists(vector<vector<int>>{
-            vector<int>{}
+            vector<int>{2}
+            , vector<int>{}
+            , vector<int>{-1}
         });
         ListNode* mergedList = Solution{}.mergeKLists(lists);
         return mergedList;
     }();
-    CHECK(vector<int>{} == mergedList);
+    CHECK(vector<int>{-1, 2} == mergedList);
     freeList(mergedList);
     cerr << '\n';
 }
