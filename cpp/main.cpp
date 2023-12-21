@@ -56,7 +56,7 @@ public:
         
         Space O(1)
     */
-    ListNode* mergeKLists_bruteForce(vector<ListNode*>& lists) {
+    ListNode* mergeKLists_bruteForce(vector<ListNode*>& lists) const {
         ListNode* result{};
 
         if (!lists.empty()) {
@@ -130,7 +130,7 @@ public:
     
         Space = O(k)
     */
-    ListNode* mergeKLists_heap(vector<ListNode*>& lists) {
+    ListNode* mergeKLists_heap(vector<ListNode*>& lists) const {
         ListNode* result = nullptr;
         
         auto const minHeapCap = lists.size();
@@ -219,9 +219,83 @@ public:
         return heapSize;
     }
     
-    ListNode* mergeKLists(vector<ListNode*>& lists) {
+    /*!
+        Merge all lists into a single large list and then merge sort it.
+        T=O(n*log2(n)) [Each recursive call processes 1/2 of the remaining data.]
+        S=O(log2(n)) [For the call stack; no temp storage used to sort.]
+    */
+    ListNode* mergeKLists_append(vector<ListNode*>& lists) const {
+        // Combine all lists into one long list.
+        ListNode* head = nullptr;
+        ListNode* tail = nullptr;
+        size_t listSize{};
+        for (auto& list : lists) {
+            while (list) {
+                if (!head) { head = list; }
+                if (tail) { tail->next = list; }
+                tail = list;
+
+                ++listSize;
+
+                list = list->next;
+            }
+        }
+
+        return head && tail ? mergeSort(head, tail, listSize) : nullptr;
+    }
+
+    ListNode* mergeSort(ListNode* head, ListNode* tail, size_t size) const {
+        if (2 >= size) {
+            if (2 == size) {
+                if (tail->val < head->val) {
+                    std::swap(head->val, tail->val);
+                }
+            }
+        } else {
+            // Find left and right lists.
+            auto const midIdx = size >> 1;
+            ListNode* left_head = head;
+            auto* left_tail = head;
+            for (auto count = midIdx - 1; 0 < count; --count) {
+                left_tail = left_tail->next;
+            }
+            auto* right_head = left_tail->next;
+            auto* right_tail = tail;
+            left_tail->next = nullptr;
+            right_tail->next = nullptr;
+
+            // Merge sort left and right lists.
+            auto* left = mergeSort(left_head, left_tail, midIdx);
+            auto* right = mergeSort(right_head, right_tail, size - midIdx);
+
+            // Merge sorted left and right lists intoa single list.
+            head = nullptr;
+            tail = nullptr;
+            while (left && right) {
+                ListNode* &lesser = left->val < right->val ? left : right;
+                if (!head) { head = lesser; }
+                if (tail) { tail->next = lesser; }
+                tail = lesser;
+                lesser = lesser->next;
+                tail->next = nullptr;
+            }
+            if (left) {
+                if (!head) { head = left; }
+                if (tail) { tail->next = left; }
+            }
+            if (right) {
+                if (!head) { head = right; }
+                if (tail) { tail->next = right; }
+            }
+        }
+
+        return head;
+    }
+
+    ListNode* mergeKLists(vector<ListNode*>& lists) const {
         //return mergeKLists_bruteForce(lists);
-        return mergeKLists_heap(lists);
+        //return mergeKLists_heap(lists);
+        return mergeKLists_append(lists);
     }
 };
 
@@ -296,6 +370,29 @@ TEST_CASE("Case 2")
     cerr << "Case 2" << '\n';
     auto [mergedList, expected] = [&]{
         auto const listsValues = vector<vector<int>>{
+        };
+        vector<int> expected{};
+        for (auto const& list : listsValues) {
+            for (auto const& value : list) {
+                expected.push_back(value);
+            }
+        }
+        std::sort(expected.begin(), expected.end());
+        auto lists = makeLists(listsValues);
+        ListNode* mergedList = Solution{}.mergeKLists(lists);
+        return std::make_tuple(mergedList, expected);
+    }();
+    CHECK(expected == mergedList);
+    freeList(mergedList);
+    cerr << '\n';
+}
+
+TEST_CASE("Case 3")
+{
+    cerr << "Case 3" << '\n';
+    auto [mergedList, expected] = [&]{
+        auto const listsValues = vector<vector<int>>{
+            vector<int>{4, 1, 5}
         };
         vector<int> expected{};
         for (auto const& list : listsValues) {
